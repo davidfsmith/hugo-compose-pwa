@@ -1,0 +1,2765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Hugo Compose">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0d0d0d">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <title>Hugo Compose</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d0d0d;
+      --surface:     #1c1c1e;
+      --surface2:    #2c2c2e;
+      --border:      #38383a;
+      --accent:      #bf5af2;
+      --accent-soft: rgba(191, 90, 242, 0.12);
+      --accent-mid:  rgba(191, 90, 242, 0.25);
+      --text:        #f2f2f7;
+      --text-2:      #aeaeb2;
+      --text-3:      #636366;
+      --green:       #32d74b;
+      --red:         #ff453a;
+      --blue:        #0a84ff;
+      --r:           14px;
+      --r-sm:        10px;
+      --safe-t:      env(safe-area-inset-top,    0px);
+      --safe-b:      env(safe-area-inset-bottom, 0px);
+      --safe-l:      env(safe-area-inset-left,   0px);
+      --safe-r:      env(safe-area-inset-right,  0px);
+    }
+
+    /* Light mode */
+    :root.light {
+      --bg:          #f2f2f7;
+      --surface:     #ffffff;
+      --surface2:    #e5e5ea;
+      --border:      #c6c6c8;
+      --accent:      #8944c4;
+      --accent-soft: rgba(137, 68, 196, 0.10);
+      --accent-mid:  rgba(137, 68, 196, 0.22);
+      --text:        #1c1c1e;
+      --text-2:      #3a3a3c;
+      --text-3:      #8e8e93;
+      --green:       #25a138;
+      --red:         #d63229;
+      --blue:        #0060d1;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not(.dark) {
+        --bg:          #f2f2f7;
+        --surface:     #ffffff;
+        --surface2:    #e5e5ea;
+        --border:      #c6c6c8;
+        --accent:      #8944c4;
+        --accent-soft: rgba(137, 68, 196, 0.10);
+        --accent-mid:  rgba(137, 68, 196, 0.22);
+        --text:        #1c1c1e;
+        --text-2:      #3a3a3c;
+        --text-3:      #8e8e93;
+        --green:       #25a138;
+        --red:         #d63229;
+        --blue:        #0060d1;
+      }
+    }
+
+    /* overflow:hidden only on html — putting it on body too triggers a WebKit
+       bug where position:fixed children get clipped relative to body instead
+       of the viewport, breaking the debug overlay and any future fixed UI. */
+    html { height: 100%; height: 100dvh; overflow: hidden; }
+    body { height: 100%; height: 100dvh; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* ── Views ── */
+    /* flex:1 + min-height:0 instead of height:100% — flex sizing is derived
+       directly from the container and survives iOS keyboard layout reflows
+       that break percentage-height inheritance. */
+    .view { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .view.active { display: flex; }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(var(--safe-t) + 14px) calc(var(--safe-r) + 20px) 14px calc(var(--safe-l) + 20px);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      flex: 1;
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-icon svg { display: block; }
+    .logo-text { color: var(--text-2); }
+    .logo-text span { color: var(--text); }
+
+    .icon-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 38px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--text-2);
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .icon-btn:active { background: var(--surface2); color: var(--text); }
+
+    /* ── Scrollable content ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px calc(var(--safe-r) + 20px) 20px calc(var(--safe-l) + 20px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ── Home view ── */
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .home-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      font-family: inherit;
+      color: var(--text);
+    }
+    .home-card:active { background: var(--surface2); border-color: var(--accent); }
+    .home-card-icon {
+      width: 52px; height: 52px;
+      background: var(--accent-soft);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+    }
+    .home-card-label {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    .home-card-wide {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      padding: 20px 24px;
+      gap: 16px;
+    }
+    .home-card-wide .home-card-icon { flex-shrink: 0; }
+    .home-card-wide .home-card-label { font-size: 16px; }
+
+    /* ── Alert banner ── */
+    .banner {
+      background: rgba(255,69,58,0.1);
+      border: 1px solid rgba(255,69,58,0.25);
+      border-radius: var(--r-sm);
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--red);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .banner button {
+      background: none; border: none;
+      color: var(--red); font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: underline;
+      padding: 0; margin-left: auto; flex-shrink: 0;
+    }
+
+    /* ── Photo picker ── */
+    .photo-picker {
+      border: 2px dashed var(--border);
+      border-radius: var(--r);
+      min-height: 160px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative; overflow: hidden;
+      background: var(--surface);
+    }
+    .photo-picker:active, .photo-picker.drag-over {
+      border-color: var(--accent); background: var(--accent-soft);
+    }
+    .photo-picker input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%; font-size: 0;
+    }
+    .picker-placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; pointer-events: none; padding: 24px; text-align: center;
+    }
+    .picker-icon {
+      width: 56px; height: 56px;
+      background: var(--surface2); border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-3);
+    }
+    .picker-placeholder p  { color: var(--text-2); font-size: 15px; font-weight: 500; }
+    .picker-placeholder small { color: var(--text-3); font-size: 12px; }
+
+    /* ── Photo grid ── */
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .photo-thumb {
+      aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden;
+      position: relative; background: var(--surface); cursor: pointer;
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb .remove {
+      position: absolute; top: 5px; right: 5px;
+      width: 22px; height: 22px;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      border: none; border-radius: 50%; color: white;
+      font-size: 12px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s; line-height: 1;
+    }
+    .photo-thumb .remove:active { background: rgba(255,69,58,0.8); }
+    .photo-thumb .label {
+      position: absolute; bottom: 5px; left: 5px;
+      background: var(--accent); color: white;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 6px; border-radius: 6px; letter-spacing: 0.3px;
+      pointer-events: none;
+    }
+    .photo-thumb .set-cover {
+      position: absolute; bottom: 5px; left: 5px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white; font-size: 10px; font-weight: 600;
+      padding: 2px 6px; border-radius: 6px;
+      cursor: pointer; letter-spacing: 0.3px;
+    }
+    .set-cover:active { background: var(--accent) !important; border-color: var(--accent) !important; }
+
+    .add-tile {
+      aspect-ratio: 1; border-radius: var(--r-sm);
+      border: 2px dashed var(--border); background: transparent;
+      color: var(--text-3); font-size: 26px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; position: relative; overflow: hidden;
+    }
+    .add-tile input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0;
+    }
+    .add-tile:active { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Fields ── */
+    .field-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--text-3); margin-bottom: 8px;
+    }
+    .field-label-opt { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; }
+    .field-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden; transition: border-color 0.15s;
+    }
+    .field-card:focus-within { border-color: var(--accent); }
+    .field-inner { padding: 14px 16px; }
+
+    textarea, input[type="text"], input[type="password"], input[type="date"] {
+      background: transparent; border: none; outline: none;
+      color: var(--text); font-size: 16px; font-family: inherit;
+      width: 100%; resize: none; -webkit-appearance: none;
+    }
+    textarea::placeholder, input::placeholder { color: var(--text-3); }
+    .caption-area { min-height: 80px; }
+    .blog-body-area { min-height: 220px; font-size: 15px; line-height: 1.6; }
+    .note-area { min-height: 140px; line-height: 1.6; }
+
+    .char-count {
+      font-size: 11px; color: var(--text-3); text-align: right;
+      padding: 0 16px 10px; border-top: 1px solid var(--border); padding-top: 8px;
+    }
+    .char-count.warn { color: var(--red); }
+
+    /* ── Markdown toolbar ── */
+    .md-toolbar {
+      display: flex; flex-wrap: nowrap; gap: 2px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border);
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      background: var(--bg); flex-shrink: 0;
+    }
+    .md-toolbar::-webkit-scrollbar { display: none; }
+    .md-toolbar-sep {
+      width: 1px; background: var(--border); margin: 0 4px; flex-shrink: 0;
+    }
+    .md-btn {
+      background: transparent; border: none; border-radius: 6px;
+      color: var(--text-2); font-family: inherit; font-size: 13px; font-weight: 600;
+      padding: 5px 8px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      min-width: 32px; height: 30px;
+      transition: background 0.1s, color 0.1s;
+    }
+    .md-btn:active { background: var(--accent-soft); color: var(--accent); }
+    .md-btn svg { display: block; }
+    .md-btn-italic { font-style: italic; }
+
+    /* ── Insert gallery button ── */
+    .btn-insert-gallery {
+      width: 100%; margin-top: 10px;
+      background: var(--accent-soft);
+      border: 1px dashed var(--accent-mid);
+      border-radius: var(--r-sm);
+      color: var(--accent); font-size: 13px; font-weight: 600;
+      font-family: inherit; padding: 10px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-insert-gallery:active { background: var(--accent-mid); }
+
+    /* ── Tag pills ── */
+    .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag-pill {
+      background: var(--accent-soft); color: var(--accent);
+      border: 1px solid var(--accent-mid); border-radius: 20px;
+      padding: 5px 10px 5px 12px; font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tag-pill-x {
+      background: none; border: none; color: var(--accent);
+      opacity: 0.55; cursor: pointer; font-size: 12px; padding: 0;
+      line-height: 1; display: flex; align-items: center;
+    }
+    .tag-pill-x:active { opacity: 1; }
+
+    /* ── Footer actions ── */
+    .footer {
+      padding: 12px calc(var(--safe-r) + 20px) calc(var(--safe-b) + 12px) calc(var(--safe-l) + 20px);
+      border-top: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .footer-row { display: flex; gap: 10px; }
+
+    /* ── Compose header actions (Draft / Publish in nav bar) ── */
+    .header-actions { display: flex; align-items: center; gap: 4px; }
+    .btn-header-draft {
+      background: none; border: none; color: var(--text-2);
+      font-size: 15px; font-weight: 500; font-family: inherit;
+      cursor: pointer; padding: 6px 8px; border-radius: 6px;
+    }
+    .btn-header-draft:active { opacity: 0.6; }
+    .btn-header-draft:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-header-publish {
+      background: var(--accent); color: white; border: none;
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 15px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: opacity 0.15s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-header-publish:active:not(:disabled) { opacity: 0.8; }
+    .btn-header-publish:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Progress ── */
+    .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .progress-bar {
+      height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #e879f9);
+      border-radius: 2px; transition: width 0.3s ease;
+    }
+    .progress-label { font-size: 12px; color: var(--text-3); text-align: center; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      flex: 1; background: var(--accent); color: white; border: none;
+      border-radius: var(--r); padding: 16px;
+      font-size: 17px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; letter-spacing: -0.2px;
+    }
+    .btn-primary:active:not(:disabled) { opacity: 0.85; transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary-full { flex: none; width: 100%; }
+
+    .btn-secondary {
+      flex: 1; background: var(--surface); color: var(--text-2);
+      border: 1px solid var(--border); border-radius: var(--r);
+      padding: 14px; font-size: 15px; font-weight: 500;
+      font-family: inherit; cursor: pointer; transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-secondary:active { background: var(--surface2); }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.65s linear infinite; flex-shrink: 0;
+    }
+
+    /* ── Settings view ── */
+    .settings-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: calc(var(--safe-t) + 14px) calc(var(--safe-r) + 20px) 14px calc(var(--safe-l) + 20px);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .settings-header h2 { flex: 1; font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+    .text-btn {
+      background: none; border: none; color: var(--accent);
+      font-size: 17px; font-weight: 600; font-family: inherit;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px;
+    }
+    .text-btn:active { opacity: 0.7; }
+    .settings-group { display: flex; flex-direction: column; gap: 8px; }
+    .settings-group-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--text-3); padding: 0 4px;
+    }
+    .settings-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+    }
+    .settings-row {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row label {
+      display: block; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-3); margin-bottom: 4px;
+    }
+    .settings-row input { font-size: 15px; }
+    .about-text { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+    code {
+      font-size: 11px; background: var(--surface2); padding: 2px 5px;
+      border-radius: 4px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--text);
+    }
+
+    /* ── Debug overlay ── */
+    /* bottom is overridden in JS to track the visual viewport bottom so the
+       overlay stays just above the keyboard (position:fixed tracks the layout
+       viewport on iOS PWA, not the visual viewport). */
+    #debug-overlay {
+      position: fixed;
+      bottom: 6px;
+      left: 8px; right: 8px;
+      z-index: 9999;
+      background: rgba(0,0,0,0.82);
+      color: #0f0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px; line-height: 1.6;
+      padding: 6px 10px; border-radius: 8px;
+      pointer-events: none;
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      max-width: 560px; margin: 0 auto;
+    }
+
+    /* ── Settings toggle ── */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-switch {
+      width: 44px; height: 26px;
+      background: var(--border); border-radius: 13px;
+      position: relative; cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .toggle-switch.on { background: var(--green); }
+    .toggle-switch::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: #fff; border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    .toggle-switch.on::after { transform: translateX(18px); }
+
+    /* ── Post list ── */
+    .posts-list { display: flex; flex-direction: column; gap: 8px; }
+    .post-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 14px 16px;
+      cursor: pointer; transition: background 0.15s;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .post-item:active { background: var(--surface2); }
+    .post-item-title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+    .post-item-meta { display: flex; align-items: center; gap: 8px; }
+    .post-item-date { font-size: 12px; color: var(--text-3); }
+    .post-item-type {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.4px; color: var(--text-3); background: var(--surface2);
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .post-item-draft {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.4px; color: var(--accent); background: var(--accent-soft);
+      border: 1px solid var(--accent-mid); padding: 2px 6px; border-radius: 4px;
+    }
+    .posts-empty {
+      text-align: center; color: var(--text-3);
+      font-size: 15px; padding: 48px 0;
+    }
+    .posts-loading {
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 0; gap: 12px; color: var(--text-3); font-size: 14px;
+    }
+    .posts-loading .spinner { border-color: rgba(255,255,255,0.15); border-top-color: var(--text-3); }
+
+    /* ── Success view ── */
+    .success-body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 32px; text-align: center; gap: 20px;
+    }
+    .success-ring {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: rgba(50,215,75,0.12);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--green);
+    }
+    .success-draft-ring   { background: rgba(191,90,242,0.12); color: var(--accent); }
+    .success-queued-ring  { background: rgba(255,159,10,0.12); color: #ff9f0a; }
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .view-success .success-ring { animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .success-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .success-sub { font-size: 15px; color: var(--text-2); line-height: 1.5; max-width: 280px; }
+    .success-commit-link {
+      font-size: 12px; color: var(--accent); word-break: break-all;
+      text-decoration: none; opacity: 0.8;
+    }
+    .success-commit-link:active { opacity: 0.5; }
+    .success-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+    /* ── Offline / queue ── */
+    .offline-pill {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      background: rgba(255,69,58,0.15); color: var(--red);
+      border: 1px solid rgba(255,69,58,0.3);
+      border-radius: 20px; padding: 3px 9px; line-height: 1;
+    }
+    .queue-banner {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-mid);
+      border-radius: var(--r-sm);
+      padding: 12px 14px;
+      font-size: 13px; color: var(--accent);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .queue-banner button {
+      background: none; border: none;
+      color: var(--accent); font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: underline;
+      padding: 0; margin-left: auto; flex-shrink: 0;
+    }
+    .posts-cached-note {
+      font-size: 11px; color: var(--text-3); text-align: center; padding-top: 4px;
+    }
+
+    /* ── Drafts ── */
+    .drafts-count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px; padding: 0 6px;
+      background: var(--accent); color: white;
+      border-radius: 10px;
+      font-size: 11px; font-weight: 700; line-height: 1;
+      margin-left: 6px;
+    }
+    .drafts-count-badge:empty { display: none; }
+    .draft-item-type-photo { color: var(--accent); background: var(--accent-soft); }
+    .draft-item-type-blog  { color: var(--blue);   background: rgba(10,132,255,0.12); }
+    .draft-item-type-note  { color: var(--green);  background: rgba(50,215,75,0.12); }
+    .draft-item-preview {
+      font-size: 13px; color: var(--text-2);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      margin-top: 2px;
+    }
+    .draft-item-actions { margin-left: auto; display: flex; gap: 4px; }
+    .draft-item-delete {
+      background: none; border: none; color: var(--text-3);
+      cursor: pointer; padding: 4px 6px; border-radius: 6px;
+      font-size: 16px; line-height: 1;
+    }
+    .draft-item-delete:active { background: var(--surface2); color: var(--red); }
+
+    /* ── Tag suggestions ── */
+    .tag-suggestions {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      overflow: hidden;
+      margin-top: 4px;
+      display: none;
+    }
+    .tag-suggestion {
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      transition: background 0.1s;
+    }
+    .tag-suggestion:last-child { border-bottom: none; }
+    .tag-suggestion:active { background: var(--surface2); color: var(--text); }
+    .tag-suggestion strong { color: var(--text); font-weight: 600; }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+    /* ── iPad / wide screen ── */
+    @media (min-width: 600px) {
+      body { max-width: 720px; }
+      .home-grid { grid-template-columns: 1fr 1fr 1fr; }
+      /* Reset wide card to match the other cards — label stacks below icon */
+      .home-card-wide { grid-column: auto; flex-direction: column; padding: 28px 16px; gap: 12px; }
+      .md-toolbar { flex-wrap: wrap; }
+      .blog-body-area { min-height: 360px; }
+      .note-area { min-height: 200px; }
+      .photo-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Debug overlay — only visible when Developer > Debug overlay is enabled -->
+<div id="debug-overlay" style="display:none" aria-hidden="true"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     HOME VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view active" id="view-home">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 11H7a4 4 0 0 0-4 4v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a4 4 0 0 0-4-4z"/>
+          <path d="M9 11V6a2 2 0 0 1 4 0v5"/>
+          <line x1="12" y1="15" x2="12" y2="17"/>
+        </svg>
+      </div>
+      <span class="logo-text">hugo <span>compose</span></span>
+      <span id="offline-pill" class="offline-pill" style="display:none">Offline</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="btn-theme-toggle" aria-label="Toggle theme">
+        <svg id="theme-icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-home-settings" aria-label="Settings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="home-no-token-banner" class="banner" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No GitHub token set.
+      <button id="btn-home-goto-settings">Set up</button>
+    </div>
+    <div id="queue-banner" class="queue-banner" style="display:none">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="queue-count-text">1 post queued</span>
+      <button id="btn-sync-now">Sync now</button>
+    </div>
+    <div class="home-grid">
+      <button class="home-card" id="btn-new-photo">
+        <div class="home-card-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <span class="home-card-label">Photo Post</span>
+      </button>
+      <button class="home-card" id="btn-new-blog">
+        <div class="home-card-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </div>
+        <span class="home-card-label">Blog Post</span>
+      </button>
+      <button class="home-card home-card-wide" id="btn-new-note">
+        <div class="home-card-icon" style="background:rgba(52,199,89,0.12);color:var(--green)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <span class="home-card-label">Note</span>
+      </button>
+      <button class="home-card home-card-wide" id="btn-view-drafts">
+        <div class="home-card-icon" style="background:rgba(10,132,255,0.12);color:var(--blue)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <path d="M10 13v4"/><path d="M12 13v4"/><path d="M14 13v4"/>
+          </svg>
+        </div>
+        <span class="home-card-label">Drafts<span class="drafts-count-badge" id="home-drafts-count"></span></span>
+      </button>
+      <button class="home-card home-card-wide" id="btn-view-posts">
+        <div class="home-card-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </div>
+        <span class="home-card-label">Posts</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHOTO COMPOSE VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-compose-photo">
+  <div class="header">
+    <button class="icon-btn" id="btn-photo-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2>Photo Post</h2>
+    <div style="width:38px"></div>
+  </div>
+
+  <div class="content">
+    <div class="banner" id="no-token-banner" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No GitHub token set.
+      <button id="btn-goto-settings">Set up</button>
+    </div>
+
+    <div id="picker-area">
+      <div class="photo-picker" id="photo-picker">
+        <input type="file" accept="image/*" multiple id="file-input" aria-label="Choose photos">
+        <div class="picker-placeholder">
+          <div class="picker-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
+          <p>Tap to choose photos</p>
+          <small>Up to 10 · JPEG · PNG · HEIC</small>
+        </div>
+      </div>
+    </div>
+    <div id="grid-area" style="display:none">
+      <div class="photo-grid" id="photo-grid"></div>
+    </div>
+
+    <div>
+      <div class="field-label">Caption</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <textarea id="caption" class="caption-area" placeholder="Write a caption… use #hashtags for tags" rows="3" maxlength="500" aria-label="Caption"></textarea>
+        </div>
+        <div class="char-count" id="char-count">0 / 500</div>
+      </div>
+    </div>
+
+    <div id="tags-section" style="display:none">
+      <div class="field-label">Tags</div>
+      <div class="tags-wrap" id="tags-wrap"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="progress-wrap" id="progress-wrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">Preparing…</div>
+    </div>
+    <div class="footer-row">
+      <button class="btn-secondary" id="btn-photo-save-draft" style="flex:0 0 auto; padding:16px 18px">Save draft</button>
+      <button class="btn-primary" id="btn-post" style="flex:1">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Post
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     BLOG COMPOSE VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-compose-blog">
+  <div class="header">
+    <button class="icon-btn" id="btn-blog-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2 id="blog-compose-heading">New Post</h2>
+    <div class="header-actions">
+      <button class="btn-header-draft" id="btn-save-draft">Save draft</button>
+      <button class="btn-header-publish" id="btn-publish">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Publish
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Title -->
+    <div>
+      <div class="field-label">Title</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <input type="text" id="blog-title" placeholder="Post title…" autocorrect="on" autocapitalize="sentences">
+        </div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div>
+      <div class="field-label">Content</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <textarea id="blog-body" class="blog-body-area" placeholder="Write your post in Markdown…" aria-label="Post content"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Images -->
+    <div id="blog-images-section">
+      <div class="field-label">Images <span class="field-label-opt">(optional — tap to set cover)</span></div>
+      <div id="blog-picker-area">
+        <div class="photo-picker" id="blog-photo-picker">
+          <input type="file" accept="image/*" multiple id="blog-file-input" aria-label="Add images">
+          <div class="picker-placeholder">
+            <div class="picker-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <p>Add images</p>
+            <small>First becomes cover · extras go in gallery</small>
+          </div>
+        </div>
+      </div>
+      <div id="blog-grid-area" style="display:none">
+        <div class="photo-grid" id="blog-photo-grid"></div>
+        <button class="btn-insert-gallery" id="btn-insert-gallery" style="display:none">
+          + Insert gallery at cursor
+        </button>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div>
+      <div class="field-label">Tags</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <input type="text" id="blog-tag-input" placeholder="Type a tag and press Space or Enter…"
+                 autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+      </div>
+      <div id="blog-tag-suggestions" class="tag-suggestions"></div>
+      <div id="blog-tags-section" style="margin-top:10px; display:none">
+        <div class="tags-wrap" id="blog-tags-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="md-toolbar" id="md-toolbar" role="toolbar" aria-label="Markdown formatting">
+    <button class="md-btn" data-fmt="bold" title="Bold"><strong>B</strong></button>
+    <button class="md-btn md-btn-italic" data-fmt="italic" title="Italic">I</button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="h2" title="Heading 2">H2</button>
+    <button class="md-btn" data-fmt="h3" title="Heading 3">H3</button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="link" title="Link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    </button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="bullet" title="Bullet list">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+    </button>
+    <button class="md-btn" data-fmt="numbered" title="Numbered list">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+    </button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="quote" title="Blockquote">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+    </button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="code" title="Inline code">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    </button>
+    <button class="md-btn" data-fmt="codeblock" title="Code block">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </button>
+    <div class="md-toolbar-sep"></div>
+    <button class="md-btn" data-fmt="hr" title="Horizontal rule">—</button>
+  </div>
+
+  <!-- Progress strip — only shown while publishing, no footer buttons needed -->
+  <div id="blog-progress-wrap" style="display:none; padding: 8px calc(var(--safe-r) + 20px); background: var(--bg); flex-shrink: 0;">
+    <div class="progress-bar"><div class="progress-fill" id="blog-progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="blog-progress-label" style="margin-top:4px;">Preparing…</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     POSTS LIST VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-posts">
+  <div class="settings-header">
+    <button class="icon-btn" id="btn-posts-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2>Posts</h2>
+    <button class="text-btn" id="btn-posts-refresh" aria-label="Refresh">↻</button>
+  </div>
+  <div class="content">
+    <div id="posts-loading" class="posts-loading" style="display:none">
+      <div class="spinner"></div> Loading posts…
+    </div>
+    <div id="posts-empty" class="posts-empty" style="display:none">No posts found.</div>
+    <div id="posts-cached-note" class="posts-cached-note" style="display:none"></div>
+    <div id="posts-list" class="posts-list"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SETTINGS VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-settings">
+  <div class="settings-header">
+    <button class="icon-btn" id="btn-settings-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2>Settings</h2>
+    <button class="text-btn" id="btn-settings-save">Save</button>
+  </div>
+  <div class="content">
+    <div class="settings-group">
+      <div class="settings-group-label">GitHub</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <label>Personal Access Token</label>
+          <input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Owner</label>
+          <input type="text" id="s-owner" placeholder="username"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Repository</label>
+          <input type="text" id="s-repo" placeholder="my-hugo-site"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Branch</label>
+          <input type="text" id="s-branch" placeholder="main"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-label">Hugo</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <label>Posts path</label>
+          <input type="text" id="s-posts-path" placeholder="content/posts"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Photos path</label>
+          <input type="text" id="s-photos-path" placeholder="content/photos"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Notes data file <span style="color:var(--text-3);font-weight:400">(optional)</span></label>
+          <input type="text" id="s-notes-path" placeholder="data/notes.json"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="settings-row">
+          <label>Front matter format</label>
+          <select id="s-fm-format" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:16px;width:100%;">
+            <option value="toml">TOML (+++)</option>
+            <option value="yaml">YAML (---)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-label">About</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <p class="about-text">Post photos and blog posts directly to your Hugo site via the GitHub API. Your GitHub token needs <code>contents:write</code> scope and is stored only in this browser's localStorage.</p>
+        </div>
+        <div class="settings-row">
+          <p class="about-text">Version <code id="app-version">dp-v30</code></p>
+        </div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-label">Developer</div>
+      <div class="settings-card">
+        <div class="settings-row toggle-row">
+          <span class="about-text">Debug overlay</span>
+          <div class="toggle-switch" id="debug-toggle" role="switch" aria-label="Debug overlay"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SUCCESS VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view view-success" id="view-success">
+  <div class="success-body">
+    <div class="success-ring" id="success-ring">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div>
+      <div class="success-title" id="success-title">Posted!</div>
+      <p class="success-sub" id="success-sub">Your post has been published.</p>
+    </div>
+    <a href="#" id="success-link" class="success-commit-link" target="_blank" rel="noopener" style="display:none"></a>
+    <div class="success-actions">
+      <button class="btn-primary btn-primary-full" id="btn-post-another">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        New Post
+      </button>
+      <button class="btn-secondary" id="btn-success-home">Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TRAINING NOTE VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-note">
+  <div class="header">
+    <button class="icon-btn" id="btn-note-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2>Note</h2>
+    <div class="header-actions">
+      <button class="btn-header-draft" id="btn-note-save-draft">Save draft</button>
+      <button class="btn-header-publish" id="btn-note-save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Save
+      </button>
+    </div>
+  </div>
+  <div class="content">
+    <div>
+      <div class="field-label">Date</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <input type="date" id="note-date" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="field-label">Note</div>
+      <div class="field-card">
+        <div class="field-inner">
+          <textarea id="note-body" class="note-area" placeholder="Write a note…" aria-label="Note"></textarea>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-3);margin-top:8px;line-height:1.5;">Notes are used as background context when generating fitness summaries — they inform the narrative without being quoted directly.</p>
+    </div>
+    <div id="note-progress-wrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="note-progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="note-progress-label">Saving…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     DRAFTS LIST VIEW
+════════════════════════════════════════════════════════ -->
+<div class="view" id="view-drafts">
+  <div class="settings-header">
+    <button class="icon-btn" id="btn-drafts-back" aria-label="Back">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2>Drafts</h2>
+    <div style="width:38px"></div>
+  </div>
+  <div class="content">
+    <div id="drafts-empty" class="posts-empty" style="display:none">No drafts saved.</div>
+    <div id="drafts-list" class="posts-list"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let busy = false;
+
+// Photo compose state
+let photoFiles = [];
+let photoTags  = new Set();
+
+// Blog compose state
+const blog = {
+  files:         [],
+  featuredIndex: 0,
+  tags:          new Set(),
+  editPath:      null,   // null = new, string path = editing
+  editSha:       null,
+};
+
+// Success state
+const success = { type: 'photo', isDraft: false };
+
+// Draft state — id of the draft currently being edited (null = new compose)
+let currentDraftId = null;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const LS = { TOKEN: 'dp_token', OWNER: 'dp_owner', REPO: 'dp_repo', BRANCH: 'dp_branch', POSTS_PATH: 'dp_posts_path', PHOTOS_PATH: 'dp_photos_path', NOTES_PATH: 'dp_notes_path', FM_FORMAT: 'dp_fm_format', TAGS: 'dp_tag_cache', QUEUE: 'dp_draft_queue', POSTS: 'dp_posts_cache', POSTS_AT: 'dp_posts_cached_at' };
+
+function cfg() {
+  return {
+    token:      localStorage.getItem(LS.TOKEN)       || '',
+    owner:      localStorage.getItem(LS.OWNER)       || '',
+    repo:       localStorage.getItem(LS.REPO)        || '',
+    branch:     localStorage.getItem(LS.BRANCH)      || 'main',
+    postsPath:  localStorage.getItem(LS.POSTS_PATH)  || 'content/posts',
+    photosPath: localStorage.getItem(LS.PHOTOS_PATH) || 'content/photos',
+    notesPath:  localStorage.getItem(LS.NOTES_PATH)  || '',
+    fmFormat:   localStorage.getItem(LS.FM_FORMAT)    || 'toml',
+  };
+}
+function saveCfg(v) {
+  localStorage.setItem(LS.TOKEN,       v.token);
+  localStorage.setItem(LS.OWNER,       v.owner);
+  localStorage.setItem(LS.REPO,        v.repo);
+  localStorage.setItem(LS.BRANCH,      v.branch);
+  localStorage.setItem(LS.POSTS_PATH,  v.postsPath);
+  localStorage.setItem(LS.PHOTOS_PATH, v.photosPath);
+  localStorage.setItem(LS.NOTES_PATH,  v.notesPath);
+  localStorage.setItem(LS.FM_FORMAT,   v.fmFormat);
+}
+
+// ── Views ─────────────────────────────────────────────────────────────────────
+let prevView = 'view-home';
+function showView(id) {
+  prevView = document.querySelector('.view.active')?.id || 'view-home';
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.remove('active');
+    // Clear any inline styles set by resizeLayout (iPhone fixed-view hack)
+    // so views don't carry stale sizing when switching or on wide screens.
+    v.style.position = '';
+    v.style.top = ''; v.style.left = ''; v.style.right = ''; v.style.height = '';
+    const cnt = v.querySelector('.content');
+    if (cnt) { cnt.style.height = ''; cnt.style.flex = ''; }
+  });
+  document.getElementById(id).classList.add('active');
+  requestAnimationFrame(resizeLayout);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function slugify(text) {
+  return text.toLowerCase()
+    .replace(/#\w+/g, '').replace(/[^a-z0-9\s-]/g, '')
+    .trim().replace(/\s+/g, '-').replace(/-+/g, '-')
+    .substring(0, 50).replace(/-$/, '');
+}
+
+function strToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+}
+
+// Parse TOML (+++ ... +++) or YAML (--- ... ---) front matter from a Hugo content file
+function parseFrontMatter(content) {
+  const tomlMatch = content.match(/^\+\+\+([\s\S]*?)\+\+\+/m);
+  const yamlMatch = !tomlMatch && content.match(/^---([\s\S]*?)---/m);
+  const match = tomlMatch || yamlMatch;
+  if (!match) return { meta: {}, body: content.trim() };
+  const meta = {};
+  const sep = tomlMatch ? '=' : ':';
+  for (const line of match[1].trim().split('\n')) {
+    const re = tomlMatch ? /^\s*(\w+)\s*=\s*(.+?)\s*$/ : /^\s*(\w+)\s*:\s*(.+?)\s*$/;
+    const m = line.match(re);
+    if (!m) continue;
+    const [, key, val] = m;
+    if (val === 'true')  { meta[key] = true; continue; }
+    if (val === 'false') { meta[key] = false; continue; }
+    if (val.startsWith('"') || val.startsWith("'")) { meta[key] = val.replace(/^['"]|['"]$/g, ''); continue; }
+    if (val.startsWith('[')) {
+      meta[key] = [...val.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+      continue;
+    }
+    meta[key] = val;
+  }
+  const body = content.slice(match.index + match[0].length).trim();
+  return { meta, body };
+}
+
+function formatDate(isoStr) {
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── Offline / draft queue ─────────────────────────────────────────────────────
+function getDraftQueue() {
+  try { return JSON.parse(localStorage.getItem(LS.QUEUE) || '[]'); } catch { return []; }
+}
+function addToQueue(entry) {
+  const q = getDraftQueue();
+  q.push({ ...entry, id: Date.now(), queuedAt: new Date().toISOString() });
+  try {
+    localStorage.setItem(LS.QUEUE, JSON.stringify(q));
+    return 'ok';
+  } catch {
+    // Quota exceeded — keep markdown, drop images
+    const last = q[q.length - 1];
+    last.fileMap = Object.fromEntries(Object.entries(last.fileMap).filter(([k]) => k.endsWith('.md')));
+    last.imagesDropped = true;
+    try { localStorage.setItem(LS.QUEUE, JSON.stringify(q)); return 'text-only'; } catch { return 'failed'; }
+  }
+}
+function removeFromQueue(id) {
+  const q = getDraftQueue().filter(e => e.id !== id);
+  localStorage.setItem(LS.QUEUE, JSON.stringify(q));
+}
+function updateOfflinePill() {
+  document.getElementById('offline-pill').style.display = navigator.onLine ? 'none' : 'inline-flex';
+}
+function updateQueueBadge() {
+  const q = getDraftQueue();
+  const banner = document.getElementById('queue-banner');
+  if (!q.length) { banner.style.display = 'none'; return; }
+  document.getElementById('queue-count-text').textContent =
+    `${q.length} post${q.length > 1 ? 's' : ''} queued`;
+  banner.style.display = 'flex';
+}
+async function processQueue() {
+  const q = getDraftQueue();
+  if (!q.length || !navigator.onLine) return;
+  const { token, owner, repo, branch } = cfg();
+  if (!token) return;
+  for (const entry of [...q]) {
+    try {
+      await gitCommit(token, owner, repo, branch, entry.fileMap, entry.message, () => {});
+      removeFromQueue(entry.id);
+    } catch (err) {
+      console.error('Queue sync failed:', err);
+      break;
+    }
+  }
+  updateQueueBadge();
+}
+window.addEventListener('online',  () => { updateOfflinePill(); processQueue(); });
+window.addEventListener('offline', updateOfflinePill);
+
+// ── Drafts store (IndexedDB) ──────────────────────────────────────────────────
+// Stores drafts keyed by id. Files are stored as File/Blob directly — no base64
+// blow-up, no localStorage quota issues.
+const DB_NAME  = 'dp_drafts_db';
+const DB_STORE = 'drafts';
+let _dbPromise = null;
+
+function openDraftsDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+
+function idbReq(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function saveDraft(draft) {
+  if (!draft.id) draft.id = 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  draft.updatedAt = new Date().toISOString();
+  if (!draft.createdAt) draft.createdAt = draft.updatedAt;
+  const db = await openDraftsDB();
+  const tx = db.transaction(DB_STORE, 'readwrite');
+  await idbReq(tx.objectStore(DB_STORE).put(draft));
+  return draft.id;
+}
+
+async function getDraft(id) {
+  const db = await openDraftsDB();
+  return idbReq(db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(id));
+}
+
+async function deleteDraft(id) {
+  const db = await openDraftsDB();
+  return idbReq(db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).delete(id));
+}
+
+async function listDrafts() {
+  const db = await openDraftsDB();
+  const all = await idbReq(db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).getAll());
+  return all.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+}
+
+async function updateDraftsBadge() {
+  try {
+    const drafts = await listDrafts();
+    const badge = document.getElementById('home-drafts-count');
+    if (badge) badge.textContent = drafts.length ? String(drafts.length) : '';
+  } catch (err) { console.warn('drafts badge:', err); }
+}
+
+// ── Posts list cache ──────────────────────────────────────────────────────────
+function savePostsCache(items) {
+  try {
+    localStorage.setItem(LS.POSTS,    JSON.stringify(items));
+    localStorage.setItem(LS.POSTS_AT, new Date().toISOString());
+  } catch {}
+}
+function getPostsCache() {
+  try { return JSON.parse(localStorage.getItem(LS.POSTS) || 'null'); } catch { return null; }
+}
+function renderPostList(items, fromCache) {
+  const list = document.getElementById('posts-list');
+  list.innerHTML = '';
+  const note = document.getElementById('posts-cached-note');
+  if (fromCache) {
+    const at = localStorage.getItem(LS.POSTS_AT);
+    note.textContent = `Cached · last updated ${at ? formatDate(at) : 'unknown'}`;
+    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
+  }
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'post-item';
+    div.innerHTML = `
+      <div class="post-item-title">${item.title.replace(/</g, '&lt;')}</div>
+      <div class="post-item-meta">
+        <span class="post-item-date">${item.date ? formatDate(item.date) : '—'}</span>
+        <span class="post-item-type">${item.isPhoto ? 'Photo' : 'Post'}</span>
+        ${item.draft ? '<span class="post-item-draft">Draft</span>' : ''}
+      </div>`;
+    div.addEventListener('click', () => openPostForEdit(item));
+    list.appendChild(div);
+  });
+}
+
+// ── Tag cache ─────────────────────────────────────────────────────────────────
+function getTagCache() {
+  try { return JSON.parse(localStorage.getItem(LS.TAGS) || '[]'); } catch { return []; }
+}
+function mergeTagCache(newTags) {
+  const merged = new Set([...getTagCache(), ...newTags.map(t => t.toLowerCase().trim()).filter(Boolean)]);
+  localStorage.setItem(LS.TAGS, JSON.stringify([...merged].sort()));
+}
+function showTagSuggestions(inputEl, containerEl, currentTags) {
+  const q = inputEl.value.trim().toLowerCase().replace(/^#/, '');
+  if (!q) { containerEl.style.display = 'none'; return; }
+  const matches = getTagCache()
+    .filter(t => t.includes(q) && !currentTags.has(t))
+    .slice(0, 8);
+  if (!matches.length) { containerEl.style.display = 'none'; return; }
+  containerEl.innerHTML = '';
+  matches.forEach(tag => {
+    const div = document.createElement('div');
+    div.className = 'tag-suggestion';
+    const idx = tag.indexOf(q);
+    div.innerHTML = tag.slice(0, idx) + `<strong>${tag.slice(idx, idx + q.length)}</strong>` + tag.slice(idx + q.length);
+    div.addEventListener('mousedown', e => {
+      e.preventDefault(); // keep focus on input
+      inputEl.value = '';
+      containerEl.style.display = 'none';
+      inputEl.dispatchEvent(new CustomEvent('tag-pick', { detail: tag }));
+    });
+    containerEl.appendChild(div);
+  });
+  containerEl.style.display = 'block';
+}
+
+// ── Image resize ──────────────────────────────────────────────────────────────
+function resizeToJpeg(file, maxPx = 2000, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w >= h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else        { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => {
+          const r2 = new FileReader();
+          r2.onload = () => resolve(r2.result.split(',')[1]);
+          r2.readAsDataURL(blob);
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Markdown toolbar ──────────────────────────────────────────────────────────
+function applyFormat(textarea, type) {
+  const start    = textarea.selectionStart;
+  const end      = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end);
+  const before   = textarea.value.slice(0, start);
+  const after    = textarea.value.slice(end);
+  let replacement = '';
+
+  switch (type) {
+    case 'bold':
+      replacement = `**${selected || 'bold text'}**`; break;
+    case 'italic':
+      replacement = `*${selected || 'italic text'}*`; break;
+    case 'h2':
+      replacement = `\n## ${selected || 'Heading'}\n`; break;
+    case 'h3':
+      replacement = `\n### ${selected || 'Heading'}\n`; break;
+    case 'link':
+      replacement = `[${selected || 'link text'}](https://)`; break;
+    case 'bullet':
+      replacement = selected
+        ? selected.split('\n').map(l => `- ${l}`).join('\n')
+        : '- list item'; break;
+    case 'numbered':
+      replacement = selected
+        ? selected.split('\n').map((l, i) => `${i + 1}. ${l}`).join('\n')
+        : '1. list item'; break;
+    case 'quote':
+      replacement = selected
+        ? selected.split('\n').map(l => `> ${l}`).join('\n')
+        : '> blockquote'; break;
+    case 'code':
+      replacement = `\`${selected || 'code'}\``; break;
+    case 'codeblock':
+      replacement = `\n\`\`\`\n${selected || 'code here'}\n\`\`\`\n`; break;
+    case 'hr':
+      replacement = '\n---\n'; break;
+    default: return;
+  }
+
+  textarea.value = before + replacement + after;
+  textarea.selectionStart = start;
+  textarea.selectionEnd   = start + replacement.length;
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input'));
+}
+
+// ── Front matter builders ─────────────────────────────────────────────────────
+function buildPhotoFrontMatter(title, isoDate, description, tagsArr, extraPhotos) {
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t');
+  if (cfg().fmFormat === 'yaml') {
+    let fm = `---\n`;
+    fm += `title: "${esc(title)}"\n`;
+    fm += `date: "${isoDate}"\n`;
+    fm += `description: "${esc(description)}"\n`;
+    fm += `tags: [${tagsArr.map(t => `"${t}"`).join(', ')}]\n`;
+    if (extraPhotos.length) fm += `photos: [${extraPhotos.map(p => `"${p}"`).join(', ')}]\n`;
+    fm += `---\n`;
+    return fm;
+  }
+  const tagsStr = tagsArr.length ? `[${tagsArr.map(t => `"${t}"`).join(', ')}]` : '[]';
+  let fm = `+++\n`;
+  fm += `title       = "${esc(title)}"\n`;
+  fm += `date        = "${isoDate}"\n`;
+  fm += `description = "${esc(description)}"\n`;
+  fm += `tags        = ${tagsStr}\n`;
+  if (extraPhotos.length) fm += `photos      = [${extraPhotos.map(p => `"${p}"`).join(', ')}]\n`;
+  fm += `+++\n`;
+  return fm;
+}
+
+function buildBlogFrontMatter(title, isoDate, tagsArr, isDraft) {
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t');
+  if (cfg().fmFormat === 'yaml') {
+    let fm = `---\n`;
+    fm += `title: "${esc(title)}"\n`;
+    fm += `date: "${isoDate}"\n`;
+    fm += `draft: ${isDraft}\n`;
+    fm += `tags: [${tagsArr.map(t => `"${t}"`).join(', ')}]\n`;
+    fm += `---\n`;
+    return fm;
+  }
+  const tagsStr = tagsArr.length ? `[${tagsArr.map(t => `"${t}"`).join(', ')}]` : '[]';
+  let fm = `+++\n`;
+  fm += `title      = "${esc(title)}"\n`;
+  fm += `date       = "${isoDate}"\n`;
+  fm += `draft      = ${isDraft}\n`;
+  fm += `tags       = ${tagsStr}\n`;
+  fm += `+++\n`;
+  return fm;
+}
+
+function buildGalleryShortcode(imageNames) {
+  if (!imageNames.length) return '';
+  const imgs = imageNames.map(n => `  <img src="${n}" class="grid-w50 md:grid-w33 xl:grid-w25" alt="">`).join('\n');
+  return `\n{{< gallery >}}\n${imgs}\n{{< /gallery >}}\n`;
+}
+
+// ── GitHub Git Trees API ──────────────────────────────────────────────────────
+async function gitCommit(token, owner, repo, branch, fileMap, message, progressFn) {
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  const hdrs = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type':  'application/json',
+    'Accept':        'application/vnd.github.v3+json',
+  };
+  const api = async (method, path, body) => {
+    const r = await fetch(base + path, { method, headers: hdrs, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || `GitHub API ${r.status}`); }
+    return r.json();
+  };
+
+  progressFn(55, 'Getting branch info…');
+  const ref     = await api('GET', `/git/refs/heads/${branch}`);
+  const headSha = ref.object.sha;
+  const commit  = await api('GET', `/git/commits/${headSha}`);
+  const treeSha = commit.tree.sha;
+
+  const paths = Object.keys(fileMap);
+  const treeItems = [];
+  for (let i = 0; i < paths.length; i++) {
+    progressFn(60 + Math.round(25 * i / paths.length), `Uploading file ${i + 1} of ${paths.length}…`);
+    const blob = await api('POST', '/git/blobs', { content: fileMap[paths[i]], encoding: 'base64' });
+    treeItems.push({ path: paths[i], mode: '100644', type: 'blob', sha: blob.sha });
+  }
+
+  progressFn(87, 'Creating commit…');
+  const newTree   = await api('POST', '/git/trees',  { base_tree: treeSha, tree: treeItems });
+  const newCommit = await api('POST', '/git/commits', { message, tree: newTree.sha, parents: [headSha] });
+
+  progressFn(96, 'Updating branch…');
+  await api('PATCH', `/git/refs/heads/${branch}`, { sha: newCommit.sha });
+  return newCommit.sha;
+}
+
+// Fetch a single file from GitHub (returns { content, sha })
+async function fetchGitHubFile(token, owner, repo, path) {
+  const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+  });
+  if (!r.ok) throw new Error(`GitHub API ${r.status}`);
+  const data = await r.json();
+  const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+  return { content, sha: data.sha };
+}
+
+// ── PHOTO COMPOSE ─────────────────────────────────────────────────────────────
+function renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+  photoFiles.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const div = document.createElement('div');
+    div.className = 'photo-thumb';
+    div.innerHTML = `
+      <img src="${url}" alt="">
+      ${i === 0 ? '<span class="label">Cover</span>' : ''}
+      <button class="remove" data-i="${i}" aria-label="Remove">✕</button>`;
+    grid.appendChild(div);
+  });
+  if (photoFiles.length < 10) {
+    const tile = document.createElement('div');
+    tile.className = 'add-tile';
+    tile.innerHTML = `<input type="file" accept="image/*" multiple id="photo-add-input" aria-label="Add more">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    grid.appendChild(tile);
+    document.getElementById('photo-add-input').addEventListener('change', e => {
+      addPhotoFiles(Array.from(e.target.files));
+    });
+  }
+  document.getElementById('picker-area').style.display = 'none';
+  document.getElementById('grid-area').style.display = 'block';
+  grid.querySelectorAll('.remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      photoFiles.splice(+btn.dataset.i, 1);
+      if (!photoFiles.length) {
+        document.getElementById('picker-area').style.display = 'block';
+        document.getElementById('grid-area').style.display = 'none';
+      } else { renderPhotoGrid(); }
+    });
+  });
+}
+
+function addPhotoFiles(newFiles) {
+  const room = 10 - photoFiles.length;
+  photoFiles.push(...newFiles.slice(0, room));
+  if (photoFiles.length) renderPhotoGrid();
+}
+
+function syncPhotoTags(caption) {
+  photoTags = new Set((caption.match(/#(\w+)/g) || []).map(t => t.slice(1)));
+  renderPhotoTags();
+}
+
+function renderPhotoTags() {
+  const section = document.getElementById('tags-section');
+  const wrap    = document.getElementById('tags-wrap');
+  wrap.innerHTML = '';
+  if (!photoTags.size) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  photoTags.forEach(tag => {
+    const pill = document.createElement('div');
+    pill.className = 'tag-pill';
+    pill.innerHTML = `#${tag}<button class="tag-pill-x" data-tag="${tag}" aria-label="Remove">✕</button>`;
+    wrap.appendChild(pill);
+  });
+  wrap.querySelectorAll('.tag-pill-x').forEach(x => {
+    x.addEventListener('click', () => { photoTags.delete(x.dataset.tag); renderPhotoTags(); });
+  });
+}
+
+function setPhotoProgress(pct, text) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = text;
+}
+
+async function postPhoto() {
+  if (busy) return;
+  const config  = cfg();
+  const caption = document.getElementById('caption').value.trim();
+  if (!config.token)    { alert('Add your GitHub token in Settings first.'); return; }
+  if (!photoFiles.length) { alert('Choose at least one photo.'); return; }
+  if (!caption)         { alert('Add a caption.'); return; }
+
+  if (!navigator.onLine) {
+    try { await savePhotoDraft({ silent: true }); showDraftSaved(true); }
+    catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+    return;
+  }
+
+  busy = true;
+  const postBtn = document.getElementById('btn-post');
+  postBtn.disabled = true;
+  postBtn.innerHTML = '<div class="spinner"></div> Posting…';
+  document.getElementById('progress-wrap').style.display = 'block';
+
+  try {
+    const now   = new Date();
+    const year  = String(now.getFullYear());
+    const month = pad(now.getMonth() + 1);
+    const day   = pad(now.getDate());
+    const slug  = slugify(caption) || 'photo';
+    const base  = `${config.photosPath}/${year}/${month}/${day}-${slug}`;
+    const isoDate     = now.toISOString();
+    const tagsArr     = [...photoTags];
+    const extraPhotos = photoFiles.slice(1).map((_, i) => `image-${i + 2}.jpg`);
+
+    setPhotoProgress(5, `Processing ${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''}…`);
+    const encoded = [];
+    for (let i = 0; i < photoFiles.length; i++) {
+      setPhotoProgress(5 + Math.round(45 * i / photoFiles.length), `Resizing photo ${i + 1} of ${photoFiles.length}…`);
+      encoded.push(await resizeToJpeg(photoFiles[i]));
+    }
+
+    const fm = buildPhotoFrontMatter(caption, isoDate, caption, tagsArr, extraPhotos);
+    const fileMap = { [`${base}/index.md`]: strToBase64(fm) };
+    fileMap[`${base}/feature.jpg`] = encoded[0];
+    encoded.slice(1).forEach((b64, i) => { fileMap[`${base}/image-${i + 2}.jpg`] = b64; });
+
+    const commitMsg = `photos: add ${caption.substring(0, 60)}`;
+
+    const sha = await gitCommit(config.token, config.owner, config.repo, config.branch,
+      fileMap, commitMsg, setPhotoProgress);
+
+    setPhotoProgress(100, 'Done!');
+    success.type    = 'photo';
+    success.isDraft = false;
+    if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} currentDraftId = null; updateDraftsBadge(); }
+    showSuccess(sha, `${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''} committed. GitHub Actions will deploy shortly.`);
+
+  } catch (err) {
+    console.error(err);
+    alert(`Failed to post: ${err.message}`);
+    postBtn.disabled = false;
+    postBtn.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Post`;
+    document.getElementById('progress-wrap').style.display = 'none';
+    setPhotoProgress(0, '');
+  } finally { busy = false; }
+}
+
+function resetPhotoCompose() {
+  currentDraftId = null;
+  photoFiles = [];
+  photoTags  = new Set();
+  document.getElementById('caption').value = '';
+  document.getElementById('char-count').textContent = '0 / 500';
+  document.getElementById('char-count').classList.remove('warn');
+  document.getElementById('picker-area').style.display = 'block';
+  document.getElementById('grid-area').style.display = 'none';
+  document.getElementById('tags-section').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+  setPhotoProgress(0, '');
+  const btn = document.getElementById('btn-post');
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Post`;
+}
+
+// ── BLOG COMPOSE ──────────────────────────────────────────────────────────────
+function renderBlogGrid() {
+  const grid = document.getElementById('blog-photo-grid');
+  grid.innerHTML = '';
+  blog.files.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const div = document.createElement('div');
+    div.className = 'photo-thumb';
+    const isCover = i === blog.featuredIndex;
+    div.innerHTML = `
+      <img src="${url}" alt="">
+      ${isCover
+        ? '<span class="label">Cover</span>'
+        : `<button class="set-cover" data-i="${i}">Set cover</button>`}
+      <button class="remove" data-i="${i}" aria-label="Remove">✕</button>`;
+    grid.appendChild(div);
+  });
+  if (blog.files.length < 10) {
+    const tile = document.createElement('div');
+    tile.className = 'add-tile';
+    tile.innerHTML = `<input type="file" accept="image/*" multiple id="blog-add-input" aria-label="Add more">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    grid.appendChild(tile);
+    document.getElementById('blog-add-input').addEventListener('change', e => {
+      addBlogFiles(Array.from(e.target.files));
+    });
+  }
+  document.getElementById('blog-picker-area').style.display = 'none';
+  document.getElementById('blog-grid-area').style.display = 'block';
+  const galleryBtn = document.getElementById('btn-insert-gallery');
+  galleryBtn.style.display = blog.files.length > 1 ? 'block' : 'none';
+
+  grid.querySelectorAll('.remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const idx = +btn.dataset.i;
+      blog.files.splice(idx, 1);
+      if (blog.featuredIndex >= blog.files.length) blog.featuredIndex = 0;
+      if (!blog.files.length) {
+        document.getElementById('blog-picker-area').style.display = 'block';
+        document.getElementById('blog-grid-area').style.display = 'none';
+      } else { renderBlogGrid(); }
+    });
+  });
+  grid.querySelectorAll('.set-cover').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      blog.featuredIndex = +btn.dataset.i;
+      renderBlogGrid();
+    });
+  });
+}
+
+function addBlogFiles(newFiles) {
+  const room = 10 - blog.files.length;
+  blog.files.push(...newFiles.slice(0, room));
+  if (blog.files.length) renderBlogGrid();
+}
+
+function addBlogTag(raw) {
+  const tag = raw.trim().toLowerCase().replace(/^#/, '').replace(/[^a-z0-9-]/g, '');
+  if (tag) { blog.tags.add(tag); renderBlogTags(); }
+}
+
+function renderBlogTags() {
+  const section = document.getElementById('blog-tags-section');
+  const wrap    = document.getElementById('blog-tags-wrap');
+  wrap.innerHTML = '';
+  if (!blog.tags.size) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  blog.tags.forEach(tag => {
+    const pill = document.createElement('div');
+    pill.className = 'tag-pill';
+    pill.innerHTML = `#${tag}<button class="tag-pill-x" data-tag="${tag}" aria-label="Remove">✕</button>`;
+    wrap.appendChild(pill);
+  });
+  wrap.querySelectorAll('.tag-pill-x').forEach(x => {
+    x.addEventListener('click', () => { blog.tags.delete(x.dataset.tag); renderBlogTags(); });
+  });
+}
+
+function setBlogProgress(pct, text) {
+  document.getElementById('blog-progress-fill').style.width = pct + '%';
+  document.getElementById('blog-progress-label').textContent = text;
+}
+
+async function submitBlog(isDraft) {
+  if (busy) return;
+  const config = cfg();
+  const title  = document.getElementById('blog-title').value.trim();
+  const body   = document.getElementById('blog-body').value.trim();
+  if (!config.token) { alert('Add your GitHub token in Settings first.'); return; }
+  if (!title)        { alert('Add a title.'); return; }
+  if (!body)         { alert('Add some content.'); return; }
+
+  if (!navigator.onLine) {
+    try { await saveBlogDraft({ silent: true }); showDraftSaved(true); }
+    catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+    return;
+  }
+
+  busy = true;
+  const saveDraftBtn = document.getElementById('btn-save-draft');
+  const publishBtn   = document.getElementById('btn-publish');
+  saveDraftBtn.disabled = publishBtn.disabled = true;
+  publishBtn.innerHTML  = '<div class="spinner"></div>';
+  document.getElementById('blog-progress-wrap').style.display = 'block';
+
+  try {
+    const now   = new Date();
+    const year  = String(now.getFullYear());
+    const month = pad(now.getMonth() + 1);
+    const day   = pad(now.getDate());
+    const isoDate = now.toISOString();
+    const tagsArr = [...blog.tags];
+
+    const basePath = blog.editPath
+      ? blog.editPath.replace('/index.md', '')
+      : `${config.postsPath}/${year}/${month}/${day}`;
+
+    // Build non-featured image names
+    const galleryNames = blog.files
+      .map((_, i) => i)
+      .filter(i => i !== blog.featuredIndex)
+      .map((_, j) => `image-${j + 2}.jpg`);
+
+    const fm      = buildBlogFrontMatter(title, isoDate, tagsArr, isDraft);
+    const content = fm + '\n' + body;
+
+    // Resize images
+    if (blog.files.length) {
+      setBlogProgress(5, `Processing ${blog.files.length} image${blog.files.length > 1 ? 's' : ''}…`);
+    } else {
+      setBlogProgress(40, 'Preparing…');
+    }
+
+    const encoded = [];
+    for (let i = 0; i < blog.files.length; i++) {
+      setBlogProgress(5 + Math.round(35 * i / blog.files.length), `Resizing image ${i + 1} of ${blog.files.length}…`);
+      encoded.push(await resizeToJpeg(blog.files[i]));
+    }
+
+    const fileMap = { [`${basePath}/index.md`]: strToBase64(content) };
+    if (encoded.length) {
+      fileMap[`${basePath}/feature.jpg`] = encoded[blog.featuredIndex];
+      let galleryIdx = 0;
+      encoded.forEach((b64, i) => {
+        if (i === blog.featuredIndex) return;
+        galleryIdx++;
+        fileMap[`${basePath}/image-${galleryIdx + 1}.jpg`] = b64;
+      });
+    }
+
+    const verb    = blog.editPath ? 'update' : 'add';
+    const status  = isDraft ? ' (draft)' : '';
+    const message = `${isDraft ? 'draft' : 'post'}: ${verb} ${title.substring(0, 50)}${status}`;
+
+    const sha = await gitCommit(config.token, config.owner, config.repo, config.branch,
+      fileMap, message, setBlogProgress);
+
+    setBlogProgress(100, 'Done!');
+    success.type    = 'blog';
+    success.isDraft = isDraft;
+    if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} currentDraftId = null; updateDraftsBadge(); }
+    const subMsg = 'Post published. GitHub Actions will deploy shortly.';
+    showSuccess(sha, subMsg);
+
+  } catch (err) {
+    console.error(err);
+    alert(`Failed: ${err.message}`);
+    saveDraftBtn.disabled = publishBtn.disabled = false;
+    publishBtn.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Publish`;
+    document.getElementById('blog-progress-wrap').style.display = 'none';
+    setBlogProgress(0, '');
+  } finally { busy = false; }
+}
+
+function resetBlogCompose() {
+  currentDraftId     = null;
+  blog.files         = [];
+  blog.featuredIndex = 0;
+  blog.tags          = new Set();
+  blog.editPath      = null;
+  blog.editSha       = null;
+  document.getElementById('blog-title').value    = '';
+  document.getElementById('blog-body').value     = '';
+  document.getElementById('blog-body').style.height = ''; // clear auto-grow inline height
+  document.getElementById('blog-tag-input').value = '';
+  document.getElementById('blog-compose-heading').textContent = 'New Post';
+  document.getElementById('blog-picker-area').style.display = 'block';
+  document.getElementById('blog-grid-area').style.display   = 'none';
+  document.getElementById('blog-tags-section').style.display = 'none';
+  document.getElementById('blog-images-section').style.display = 'block';
+  document.getElementById('blog-progress-wrap').style.display = 'none';
+  setBlogProgress(0, '');
+  const saveDraftBtn = document.getElementById('btn-save-draft');
+  const publishBtn   = document.getElementById('btn-publish');
+  saveDraftBtn.disabled = publishBtn.disabled = false;
+  publishBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Publish`;
+  renderBlogTags();
+}
+
+// ── POST LIST ─────────────────────────────────────────────────────────────────
+async function loadPosts() {
+  const config = cfg();
+  if (!config.token) { alert('Add your GitHub token in Settings first.'); return; }
+
+  document.getElementById('posts-empty').style.display = 'none';
+  document.getElementById('posts-cached-note').style.display = 'none';
+
+  // Show cached list immediately while fetching (or if offline)
+  const cached = getPostsCache();
+  if (cached && cached.length) {
+    renderPostList(cached, true);
+  } else {
+    document.getElementById('posts-list').innerHTML = '';
+  }
+
+  if (!navigator.onLine) {
+    if (!cached || !cached.length) document.getElementById('posts-empty').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('posts-loading').style.display = 'flex';
+
+  try {
+    // Get repo tree (recursive) to find all post index.md files
+    const r = await fetch(
+      `https://api.github.com/repos/${config.owner}/${config.repo}/git/trees/HEAD?recursive=1`,
+      { headers: { 'Authorization': `Bearer ${config.token}`, 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    if (!r.ok) throw new Error(`GitHub API ${r.status}`);
+    const tree = await r.json();
+
+    const postsPrefix = config.postsPath.replace(/\/$/, '') + '/';
+    const photosPrefix = config.photosPath.replace(/\/$/, '') + '/';
+    const postPaths = tree.tree
+      .filter(f => f.type === 'blob' && f.path.startsWith(postsPrefix) && f.path.endsWith('/index.md'))
+      .map(f => f.path)
+      .sort().reverse()
+      .slice(0, 25);
+
+    const photoPaths = tree.tree
+      .filter(f => f.type === 'blob' && f.path.startsWith(photosPrefix) && f.path.endsWith('/index.md'))
+      .map(f => f.path)
+      .sort().reverse()
+      .slice(0, 10);
+
+    const allPaths = [...postPaths, ...photoPaths].sort().reverse().slice(0, 30);
+
+    if (!allPaths.length) {
+      document.getElementById('posts-empty').style.display = 'block';
+      return;
+    }
+
+    // Fetch front matter in parallel (batched to avoid rate limits)
+    const items = await Promise.all(
+      allPaths.map(async path => {
+        try {
+          const { content } = await fetchGitHubFile(config.token, config.owner, config.repo, path);
+          const { meta } = parseFrontMatter(content);
+          const isPhoto = path.startsWith(photosPrefix);
+          const tags = Array.isArray(meta.tags) ? meta.tags : [];
+          return { path, title: meta.title || path, date: meta.date || '', draft: meta.draft === true, isPhoto, tags };
+        } catch { return null; }
+      })
+    );
+
+    const valid = items.filter(Boolean);
+
+    // Cache all tags for suggestions
+    const allTags = valid.flatMap(item => item.tags);
+    if (allTags.length) mergeTagCache(allTags);
+
+    if (!valid.length) {
+      document.getElementById('posts-empty').style.display = 'block';
+      return;
+    }
+
+    savePostsCache(valid);
+    renderPostList(valid, false);
+
+  } catch (err) {
+    console.error(err);
+    alert(`Failed to load posts: ${err.message}`);
+  } finally {
+    document.getElementById('posts-loading').style.display = 'none';
+  }
+}
+
+async function openPostForEdit(item) {
+  if (item.isPhoto) { alert('Photo posts can\'t be edited here yet — edit directly in the repo.'); return; }
+  const config = cfg();
+  try {
+    const { content, sha } = await fetchGitHubFile(config.token, config.owner, config.repo, item.path);
+    const { meta, body } = parseFrontMatter(content);
+
+    resetBlogCompose();
+    blog.editPath = item.path;
+    blog.editSha  = sha;
+    blog.tags     = new Set(Array.isArray(meta.tags) ? meta.tags : []);
+
+    document.getElementById('blog-title').value = meta.title || '';
+    const bodyTA = document.getElementById('blog-body');
+    bodyTA.value = body;
+    document.getElementById('blog-compose-heading').textContent = 'Edit Post';
+    document.getElementById('blog-images-section').style.display = 'none'; // images already in repo
+    renderBlogTags();
+    showView('view-compose-blog');
+  } catch (err) {
+    alert(`Failed to load post: ${err.message}`);
+  }
+}
+
+// ── SUCCESS ───────────────────────────────────────────────────────────────────
+function showSuccess(sha, subText) {
+  const config  = cfg();
+  const isDraft = success.isDraft;
+  const ring    = document.getElementById('success-ring');
+  ring.className = isDraft ? 'success-ring success-draft-ring' : 'success-ring';
+  ring.innerHTML = isDraft
+    ? `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`
+    : `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  document.getElementById('success-title').textContent = isDraft ? 'Draft saved!' : 'Posted!';
+  document.getElementById('success-sub').textContent   = subText;
+  const link = document.getElementById('success-link');
+  if (sha) {
+    link.href        = `https://github.com/${config.owner}/${config.repo}/commit/${sha}`;
+    link.textContent = `View commit ${sha.slice(0, 7)} on GitHub →`;
+    link.style.display = 'block';
+  } else { link.style.display = 'none'; }
+  showView('view-success');
+}
+
+function showQueued(subText) {
+  const ring = document.getElementById('success-ring');
+  ring.className = 'success-ring success-queued-ring';
+  ring.innerHTML = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  document.getElementById('success-title').textContent = 'Queued!';
+  document.getElementById('success-sub').textContent   = subText;
+  document.getElementById('success-link').style.display = 'none';
+  showView('view-success');
+}
+
+// ── DRAFTS ────────────────────────────────────────────────────────────────────
+function showDraftSaved(wasOffline) {
+  const ring = document.getElementById('success-ring');
+  ring.className = wasOffline ? 'success-ring success-queued-ring' : 'success-ring success-draft-ring';
+  ring.innerHTML = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
+  document.getElementById('success-title').textContent = wasOffline ? 'No connection — saved as draft' : 'Draft saved';
+  document.getElementById('success-sub').textContent   = 'Find it under Drafts on the home screen.';
+  document.getElementById('success-link').style.display = 'none';
+  showView('view-success');
+  updateDraftsBadge();
+}
+
+async function savePhotoDraft({ silent } = {}) {
+  const caption = document.getElementById('caption').value.trim();
+  if (!photoFiles.length && !caption) {
+    if (!silent) alert('Add a photo or caption before saving.');
+    return null;
+  }
+  success.type = 'photo';
+  const draft = {
+    id: currentDraftId || undefined,
+    type: 'photo',
+    title: caption || `${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''}`,
+    preview: caption || '(no caption)',
+    caption,
+    files: photoFiles.slice(),     // File objects — structured-clone into IDB
+    tags: [...photoTags],
+  };
+  const id = await saveDraft(draft);
+  currentDraftId = id;
+  return id;
+}
+
+async function saveBlogDraft({ silent } = {}) {
+  const title = document.getElementById('blog-title').value.trim();
+  const body  = document.getElementById('blog-body').value.trim();
+  if (!title && !body && !blog.files.length) {
+    if (!silent) alert('Add some content before saving.');
+    return null;
+  }
+  success.type = 'blog';
+  const draft = {
+    id: currentDraftId || undefined,
+    type: 'blog',
+    title: title || '(Untitled)',
+    preview: (body || '').replace(/\s+/g, ' ').slice(0, 120) || '(no content)',
+    titleField: title,
+    body,
+    files: blog.files.slice(),
+    featuredIndex: blog.featuredIndex,
+    tags: [...blog.tags],
+    editPath: blog.editPath,
+    editSha:  blog.editSha,
+  };
+  const id = await saveDraft(draft);
+  currentDraftId = id;
+  return id;
+}
+
+async function saveNoteDraft({ silent } = {}) {
+  const date = document.getElementById('note-date').value;
+  const body = document.getElementById('note-body').value.trim();
+  if (!date && !body) {
+    if (!silent) alert('Add a date or note before saving.');
+    return null;
+  }
+  success.type = 'note';
+  const draft = {
+    id: currentDraftId || undefined,
+    type: 'note',
+    title: date ? `Note — ${formatDate(date)}` : 'Note',
+    preview: body.replace(/\s+/g, ' ').slice(0, 120) || '(no note)',
+    date,
+    body,
+  };
+  const id = await saveDraft(draft);
+  currentDraftId = id;
+  return id;
+}
+
+function loadPhotoDraft(d) {
+  resetPhotoCompose();
+  currentDraftId  = d.id;
+  photoFiles      = (d.files || []).slice();
+  photoTags       = new Set(d.tags || []);
+  const captionEl = document.getElementById('caption');
+  captionEl.value = d.caption || '';
+  captionEl.dispatchEvent(new Event('input'));
+  if (photoFiles.length) renderPhotoGrid();
+  renderPhotoTags();
+  checkToken();
+  showView('view-compose-photo');
+}
+
+function loadBlogDraft(d) {
+  resetBlogCompose();
+  currentDraftId     = d.id;
+  blog.files         = (d.files || []).slice();
+  blog.featuredIndex = d.featuredIndex || 0;
+  blog.tags          = new Set(d.tags || []);
+  blog.editPath      = d.editPath || null;
+  blog.editSha       = d.editSha  || null;
+  document.getElementById('blog-title').value = d.titleField || '';
+  const bodyTA = document.getElementById('blog-body');
+  bodyTA.value = d.body || '';
+  requestAnimationFrame(() => {
+    if (bodyTA.scrollHeight > bodyTA.offsetHeight) bodyTA.style.height = bodyTA.scrollHeight + 'px';
+  });
+  if (blog.files.length) renderBlogGrid();
+  renderBlogTags();
+  if (blog.editPath) document.getElementById('blog-compose-heading').textContent = 'Edit Post';
+  showView('view-compose-blog');
+}
+
+function loadNoteDraft(d) {
+  openNoteView();
+  currentDraftId = d.id;
+  document.getElementById('note-date').value = d.date || todayISO();
+  const bodyTA = document.getElementById('note-body');
+  bodyTA.value = d.body || '';
+  requestAnimationFrame(() => {
+    if (bodyTA.scrollHeight > bodyTA.offsetHeight) bodyTA.style.height = bodyTA.scrollHeight + 'px';
+  });
+}
+
+async function renderDraftsList() {
+  const list  = document.getElementById('drafts-list');
+  const empty = document.getElementById('drafts-empty');
+  list.innerHTML = '';
+  let drafts = [];
+  try { drafts = await listDrafts(); }
+  catch (err) { console.error('listDrafts:', err); empty.textContent = 'Unable to load drafts.'; empty.style.display = 'block'; return; }
+
+  if (!drafts.length) { empty.textContent = 'No drafts saved.'; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  drafts.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'post-item';
+    const typeLabel = d.type === 'photo' ? 'Photo' : d.type === 'blog' ? 'Post' : 'Note';
+    div.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:8px;">
+        <div style="flex:1; min-width:0;">
+          <div class="post-item-title">${(d.title || '(Untitled)').replace(/</g, '&lt;')}</div>
+          <div class="draft-item-preview">${(d.preview || '').replace(/</g, '&lt;')}</div>
+          <div class="post-item-meta" style="margin-top:6px;">
+            <span class="post-item-type draft-item-type-${d.type}">${typeLabel}</span>
+            <span class="post-item-date">${d.updatedAt ? formatDate(d.updatedAt) : '—'}</span>
+          </div>
+        </div>
+        <div class="draft-item-actions">
+          <button class="draft-item-delete" data-id="${d.id}" aria-label="Delete draft">✕</button>
+        </div>
+      </div>`;
+    div.addEventListener('click', e => {
+      if (e.target.closest('.draft-item-delete')) return;
+      openDraftForEdit(d);
+    });
+    list.appendChild(div);
+  });
+
+  list.querySelectorAll('.draft-item-delete').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('Delete this draft?')) return;
+      await deleteDraft(btn.dataset.id);
+      await renderDraftsList();
+      updateDraftsBadge();
+    });
+  });
+}
+
+function openDraftForEdit(d) {
+  if (d.type === 'photo') loadPhotoDraft(d);
+  else if (d.type === 'blog') loadBlogDraft(d);
+  else if (d.type === 'note') loadNoteDraft(d);
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function openSettings() {
+  const c = cfg();
+  document.getElementById('s-token').value       = c.token;
+  document.getElementById('s-owner').value       = c.owner;
+  document.getElementById('s-repo').value        = c.repo;
+  document.getElementById('s-branch').value      = c.branch;
+  document.getElementById('s-posts-path').value  = c.postsPath;
+  document.getElementById('s-photos-path').value = c.photosPath;
+  document.getElementById('s-notes-path').value  = c.notesPath;
+  document.getElementById('s-fm-format').value   = c.fmFormat;
+  showView('view-settings');
+}
+
+function checkToken() {
+  const hasToken = !!cfg().token;
+  document.getElementById('no-token-banner').style.display      = hasToken ? 'none' : 'flex';
+  document.getElementById('home-no-token-banner').style.display = hasToken ? 'none' : 'flex';
+}
+
+function updateNotesVisibility() {
+  const show = !!cfg().notesPath;
+  document.getElementById('btn-new-note').style.display = show ? '' : 'none';
+}
+
+// ── TRAINING NOTE ─────────────────────────────────────────────────────────────
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function openNoteView() {
+  currentDraftId = null;
+  document.getElementById('note-date').value    = todayISO();
+  document.getElementById('note-body').value    = '';
+  document.getElementById('note-body').style.height = '';
+  document.getElementById('note-progress-wrap').style.display = 'none';
+  const saveBtn = document.getElementById('btn-note-save');
+  saveBtn.disabled = false;
+  saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Save`;
+  showView('view-note');
+}
+
+async function saveNote() {
+  if (busy) return;
+  const date     = document.getElementById('note-date').value;
+  const noteText = document.getElementById('note-body').value.trim();
+  if (!date || !noteText) { alert('Please enter a date and a note.'); return; }
+
+  const config = cfg();
+  if (!config.token) { alert('Add your GitHub token in Settings first.'); return; }
+
+  if (!navigator.onLine) {
+    try { await saveNoteDraft({ silent: true }); showDraftSaved(true); }
+    catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+    return;
+  }
+
+  const saveBtn = document.getElementById('btn-note-save');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<div class="spinner"></div>';
+  document.getElementById('note-progress-wrap').style.display = 'block';
+
+  const setProgress = (pct, msg) => {
+    document.getElementById('note-progress-fill').style.width  = pct + '%';
+    document.getElementById('note-progress-label').textContent = msg;
+  };
+
+  try {
+    busy = true;
+    const filePath = config.notesPath;
+
+    setProgress(15, 'Reading current notes…');
+    let entries = [];
+    try {
+      const { content } = await fetchGitHubFile(config.token, config.owner, config.repo, filePath);
+      entries = JSON.parse(content);
+    } catch (e) {
+      if (!String(e).includes('404')) throw e;
+      // File doesn't exist yet — start fresh
+    }
+
+    entries.push({ date, note: noteText });
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+
+    const json    = JSON.stringify(entries, null, 2) + '\n';
+    const fileMap = { [filePath]: strToBase64(json) };
+
+    await gitCommit(config.token, config.owner, config.repo, config.branch,
+      fileMap, `note: add note for ${date}`,
+      (pct, msg) => setProgress(20 + Math.round(pct * 0.78), msg));
+
+    setProgress(100, 'Saved!');
+    if (currentDraftId) { try { await deleteDraft(currentDraftId); } catch {} currentDraftId = null; updateDraftsBadge(); }
+    setTimeout(() => showView('view-home'), 900);
+
+  } catch (err) {
+    console.error(err);
+    alert(`Failed: ${err.message}`);
+    saveBtn.disabled    = false;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Save`;
+    document.getElementById('note-progress-wrap').style.display = 'none';
+  } finally { busy = false; }
+}
+
+// ── EVENT WIRING ──────────────────────────────────────────────────────────────
+
+// Home
+document.getElementById('btn-home-settings').addEventListener('click', openSettings);
+document.getElementById('btn-sync-now').addEventListener('click', processQueue);
+document.getElementById('btn-home-goto-settings').addEventListener('click', openSettings);
+document.getElementById('btn-new-photo').addEventListener('click', () => {
+  resetPhotoCompose();
+  checkToken();
+  showView('view-compose-photo');
+});
+document.getElementById('btn-new-blog').addEventListener('click', () => {
+  resetBlogCompose();
+  showView('view-compose-blog');
+});
+document.getElementById('btn-new-note').addEventListener('click', openNoteView);
+document.getElementById('btn-view-posts').addEventListener('click', () => {
+  showView('view-posts');
+  loadPosts();
+});
+
+// Note
+document.getElementById('btn-note-back').addEventListener('click', () => {
+  if (currentDraftId) { showView('view-drafts'); renderDraftsList(); }
+  else                 { showView('view-home'); }
+});
+document.getElementById('btn-note-save').addEventListener('click', saveNote);
+document.getElementById('note-body').addEventListener('input', function () {
+  if (this.scrollHeight > this.offsetHeight) this.style.height = this.scrollHeight + 'px';
+});
+
+// Photo compose
+document.getElementById('btn-photo-back').addEventListener('click', () => {
+  if (currentDraftId) { showView('view-drafts'); renderDraftsList(); }
+  else                 { showView('view-home'); }
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  addPhotoFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+document.getElementById('caption').addEventListener('input', function () {
+  const len = this.value.length;
+  const cc  = document.getElementById('char-count');
+  cc.textContent = `${len} / 500`;
+  cc.classList.toggle('warn', len > 450);
+  this.style.height = '1px';
+  this.style.height = this.scrollHeight + 'px';
+  syncPhotoTags(this.value);
+});
+document.getElementById('btn-goto-settings').addEventListener('click', openSettings);
+document.getElementById('btn-post').addEventListener('click', postPhoto);
+
+// Blog compose
+document.getElementById('btn-blog-back').addEventListener('click', () => {
+  if (currentDraftId)    { showView('view-drafts'); renderDraftsList(); }
+  else if (blog.editPath) { showView('view-posts'); }
+  else                    { showView('view-home'); }
+});
+document.getElementById('blog-file-input').addEventListener('change', e => {
+  addBlogFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+document.getElementById('blog-body').addEventListener('input', function () {
+  // Grow-only: never reset to 1px — a spurious iOS input event (fired on
+  // focus/keyboard change) would measure a wrong scrollHeight and collapse
+  // the textarea. Only grow beyond the current rendered height.
+  if (this.scrollHeight > this.offsetHeight) {
+    this.style.height = this.scrollHeight + 'px';
+  }
+});
+document.getElementById('blog-tag-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
+    e.preventDefault();
+    addBlogTag(this.value);
+    this.value = '';
+    document.getElementById('blog-tag-suggestions').style.display = 'none';
+  }
+});
+document.getElementById('blog-tag-input').addEventListener('input', function () {
+  showTagSuggestions(this, document.getElementById('blog-tag-suggestions'), blog.tags);
+});
+document.getElementById('blog-tag-input').addEventListener('blur', function () {
+  setTimeout(() => { document.getElementById('blog-tag-suggestions').style.display = 'none'; }, 150);
+  if (this.value.trim()) { addBlogTag(this.value); this.value = ''; }
+});
+document.getElementById('blog-tag-input').addEventListener('tag-pick', function (e) {
+  addBlogTag(e.detail);
+  showTagSuggestions(this, document.getElementById('blog-tag-suggestions'), blog.tags);
+});
+
+// Markdown toolbar
+document.getElementById('md-toolbar').addEventListener('click', e => {
+  const btn = e.target.closest('[data-fmt]');
+  if (btn) applyFormat(document.getElementById('blog-body'), btn.dataset.fmt);
+});
+
+// Insert gallery
+document.getElementById('btn-insert-gallery').addEventListener('click', () => {
+  const textarea   = document.getElementById('blog-body');
+  const galleryNames = blog.files
+    .map((_, i) => i).filter(i => i !== blog.featuredIndex)
+    .map((_, j) => `image-${j + 2}.jpg`);
+  const shortcode = buildGalleryShortcode(galleryNames);
+  applyFormat(textarea, '__insert__');
+  // Insert raw shortcode at cursor
+  const start = textarea.selectionStart;
+  const before = textarea.value.slice(0, start);
+  const after  = textarea.value.slice(start);
+  textarea.value = before + shortcode + after;
+  textarea.selectionStart = textarea.selectionEnd = start + shortcode.length;
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input'));
+});
+
+document.getElementById('btn-save-draft').addEventListener('click', async () => {
+  try {
+    const id = await saveBlogDraft();
+    if (id) showDraftSaved(false);
+  } catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+});
+document.getElementById('btn-publish').addEventListener('click', () => submitBlog(false));
+
+// Photo compose: Save draft button
+document.getElementById('btn-photo-save-draft').addEventListener('click', async () => {
+  try {
+    const id = await savePhotoDraft();
+    if (id) showDraftSaved(false);
+  } catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+});
+
+// Note: Save draft button
+document.getElementById('btn-note-save-draft').addEventListener('click', async () => {
+  try {
+    const id = await saveNoteDraft();
+    if (id) showDraftSaved(false);
+  } catch (err) { console.error(err); alert('Failed to save draft: ' + err.message); }
+});
+
+// Drafts list view
+document.getElementById('btn-view-drafts').addEventListener('click', () => {
+  showView('view-drafts');
+  renderDraftsList();
+});
+document.getElementById('btn-drafts-back').addEventListener('click', () => showView('view-home'));
+
+// Posts list
+document.getElementById('btn-posts-back').addEventListener('click',    () => showView('view-home'));
+document.getElementById('btn-posts-refresh').addEventListener('click', loadPosts);
+
+// Settings
+document.getElementById('btn-settings-back').addEventListener('click', () => showView(prevView === 'view-settings' ? 'view-home' : prevView));
+document.getElementById('btn-settings-save').addEventListener('click', () => {
+  saveCfg({
+    token:      document.getElementById('s-token').value.trim(),
+    owner:      document.getElementById('s-owner').value.trim(),
+    repo:       document.getElementById('s-repo').value.trim(),
+    branch:     document.getElementById('s-branch').value.trim() || 'main',
+    postsPath:  document.getElementById('s-posts-path').value.trim() || 'content/posts',
+    photosPath: document.getElementById('s-photos-path').value.trim() || 'content/photos',
+    notesPath:  document.getElementById('s-notes-path').value.trim(),
+    fmFormat:   document.getElementById('s-fm-format').value,
+  });
+  checkToken();
+  updateNotesVisibility();
+  showView(prevView === 'view-settings' ? 'view-home' : prevView);
+});
+
+// Success
+document.getElementById('btn-post-another').addEventListener('click', () => {
+  if (success.type === 'photo') {
+    resetPhotoCompose();
+    showView('view-compose-photo');
+  } else if (success.type === 'note') {
+    openNoteView();
+  } else {
+    resetBlogCompose();
+    showView('view-compose-blog');
+  }
+});
+document.getElementById('btn-success-home').addEventListener('click', () => showView('view-home'));
+
+// ── THEME ────────────────────────────────────────────────────────────────────
+function applyTheme(mode) {
+  // mode: 'dark' | 'light' | 'auto'
+  const root = document.documentElement;
+  root.classList.remove('dark', 'light');
+  if (mode === 'dark')  root.classList.add('dark');
+  if (mode === 'light') root.classList.add('light');
+
+  const isDark = mode === 'dark' ||
+    (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelector('meta[name="theme-color"]').content = isDark ? '#0d0d0d' : '#f2f2f7';
+  document.getElementById('theme-icon-moon').style.display = isDark  ? 'block' : 'none';
+  document.getElementById('theme-icon-sun').style.display  = !isDark ? 'block' : 'none';
+}
+function toggleTheme() {
+  const current = localStorage.getItem('dp_theme') || 'auto';
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  // Cycle: auto→opposite of system→back to auto
+  let next;
+  if (current === 'auto') next = systemDark ? 'light' : 'dark';
+  else next = 'auto';
+  localStorage.setItem('dp_theme', next);
+  applyTheme(next);
+}
+document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+applyTheme(localStorage.getItem('dp_theme') || 'auto');
+
+// ── Debug overlay toggle ───────────────────────────────────────────────────────
+function applyDebug(on) {
+  const overlay = document.getElementById('debug-overlay');
+  const toggle  = document.getElementById('debug-toggle');
+  overlay.style.display = on ? 'block' : 'none';
+  toggle.classList.toggle('on', on);
+  if (on) resizeLayout(); // populate immediately
+}
+document.getElementById('debug-toggle').addEventListener('click', () => {
+  const next = localStorage.getItem('dp_debug') !== '1';
+  localStorage.setItem('dp_debug', next ? '1' : '0');
+  applyDebug(next);
+});
+
+// ── iOS keyboard fix (iPhone only) ────────────────────────────────────────────
+// On iOS PWA, 100dvh never shrinks when the soft keyboard opens.
+// Fix: pin the active view to position:fixed anchored to visualViewport so
+// iOS stops scrolling the layout viewport when an input is focused.
+//
+// On iPad (innerWidth ≥ 600) with a hardware keyboard the software keyboard
+// never appears, so the layout viewport is never scrolled — natural CSS flex
+// is all that's needed. Applying the fixed-view hack on iPad causes brittle
+// centering calculations and jarring layout shifts, so we skip it there.
+function resizeLayout() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const h    = Math.round(vv.height);
+  const offT = Math.round(vv.offsetTop);
+
+  const activeView = document.querySelector('.view.active');
+  let dbgContent = '-', dbgSiblings = 0;
+
+  // Apply the fixed-view hack when:
+  //  • iPhone (always — iOS scrolls the layout viewport on input focus), OR
+  //  • iPad/wide with the SOFTWARE keyboard open (vv.height drops >100px vs
+  //    window.innerHeight — hardware keyboard never triggers this).
+  // When neither applies (iPad + hardware keyboard) natural CSS flex is used.
+  const softKeyboard = (window.innerHeight - h) > 100;
+
+  if (activeView && (window.innerWidth < 600 || softKeyboard)) {
+    // Centre within visual viewport, respecting body max-width breakpoints.
+    const vvW  = Math.round(vv.width);
+    const maxW = vvW >= 600 ? Math.min(vvW, 720) : Math.min(vvW, 560);
+    const hOff = Math.round((vvW - maxW) / 2);
+    activeView.style.position = 'fixed';
+    activeView.style.top      = offT + 'px';
+    activeView.style.left     = hOff + 'px';
+    activeView.style.right    = hOff + 'px';
+    activeView.style.height   = h + 'px';
+
+    const cnt = activeView.querySelector('.content');
+    if (cnt) {
+      activeView.childNodes.forEach(el => {
+        if (el.nodeType === 1 && !el.classList.contains('content'))
+          dbgSiblings += el.getBoundingClientRect().height;
+      });
+      dbgSiblings = Math.round(dbgSiblings);
+      const contentH = Math.max(0, h - dbgSiblings);
+      cnt.style.height = contentH + 'px';
+      cnt.style.flex   = 'none';
+      dbgContent = contentH;
+
+      requestAnimationFrame(() => {
+        const focused = document.activeElement;
+        if (cnt && focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
+          const cntTop  = cnt.getBoundingClientRect().top;
+          const focTop  = focused.getBoundingClientRect().top;
+          cnt.scrollTop = Math.max(0, cnt.scrollTop + (focTop - cntTop) - 20);
+        }
+      });
+    }
+  } else if (activeView) {
+    // Hardware keyboard / no soft keyboard: clear any stale fixed styles and
+    // let natural CSS flex handle the layout.
+    activeView.style.position = '';
+    activeView.style.top = ''; activeView.style.left = ''; activeView.style.right = ''; activeView.style.height = '';
+    const cnt = activeView.querySelector('.content');
+    if (cnt) { cnt.style.height = ''; cnt.style.flex = ''; }
+  }
+
+  if (window.scrollY !== 0) window.scrollTo(0, 0);
+
+  // Update debug overlay.
+  // position:fixed tracks the LAYOUT viewport on iOS PWA (not visual), so we
+  // compute how far the visual viewport bottom is from the screen bottom and
+  // offset accordingly — this keeps the overlay just above the keyboard.
+  const overlay = document.getElementById('debug-overlay');
+  if (overlay && overlay.style.display !== 'none') {
+    const gapBelowVV = Math.round(window.innerHeight - (offT + h));
+    overlay.style.bottom = `calc(${gapBelowVV}px + var(--safe-b) + 6px)`;
+    overlay.style.top    = 'auto';
+
+    const activeId = document.querySelector('.view.active')?.id ?? '-';
+    const cntEl    = document.querySelector('.view.active .content');
+    const scrollT  = cntEl ? Math.round(cntEl.scrollTop) : '-';
+    const focTag   = document.activeElement?.tagName ?? '-';
+    const focId    = document.activeElement?.id ? '#'+document.activeElement.id : '';
+    overlay.innerHTML =
+      `screen ${screen.width}×${screen.height} @${window.devicePixelRatio}x` +
+      ` &nbsp; inner ${window.innerWidth}×${window.innerHeight}<br>` +
+      `vv ${Math.round(vv.width)}×${h}` +
+      ` offT ${offT}` +
+      ` gap ${gapBelowVV}` +
+      ` &nbsp; scrollY ${Math.round(window.scrollY)}<br>` +
+      `siblings ${dbgSiblings} &nbsp; cnt ${dbgContent} &nbsp; scrollT ${scrollT}<br>` +
+      `view ${activeId} &nbsp; focus ${focTag}${focId}`;
+  }
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resizeLayout);
+  window.visualViewport.addEventListener('scroll', resizeLayout);
+  resizeLayout();
+}
+window.addEventListener('scroll', () => { if (window.scrollY !== 0) window.scrollTo(0, 0); });
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+// Show active SW cache version
+if ('caches' in window) {
+  caches.keys().then(keys => {
+    const swCache = keys.find(k => k.startsWith('dp-'));
+    if (swCache) document.getElementById('app-version').textContent = swCache;
+  });
+}
+checkToken();
+applyDebug(localStorage.getItem('dp_debug') === '1');
+
+// Hide the photo compose footer while caption is focused and soft keyboard is open.
+// Blog compose has no footer (actions moved to header), so only photo needs this.
+function updateFooterVisibility() {
+  const el = document.activeElement;
+  const vv = window.visualViewport;
+  const softKeyboard = vv && (window.innerHeight - vv.height) > 100;
+  const photoFooter = document.querySelector('#view-compose-photo .footer');
+  if (photoFooter) photoFooter.style.display = (el?.id === 'caption' && softKeyboard) ? 'none' : '';
+}
+
+document.addEventListener('focusin',  () => requestAnimationFrame(() => { updateFooterVisibility(); resizeLayout(); }));
+document.addEventListener('focusout', () => requestAnimationFrame(() => { updateFooterVisibility(); resizeLayout(); }));
+updateOfflinePill();
+updateQueueBadge();
+updateDraftsBadge();
+updateNotesVisibility();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
