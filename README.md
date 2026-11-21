@@ -2,6 +2,10 @@
 
 A mobile-first progressive web app for creating photo posts and blog posts on any Hugo site, directly from your phone. No backend server, no CMS, no account — just a single HTML file that commits to GitHub.
 
+<p align="center">
+  <img src="screenshot.png" alt="Hugo Compose on iPhone" width="300">
+</p>
+
 ## What it does
 
 Hugo Compose is a PWA that runs from your phone's home screen (or any browser) and publishes content to your Hugo site via the GitHub API. Write a post, attach photos, tap Publish — it creates a single Git commit with the page bundle and your CI/CD pipeline deploys it.
