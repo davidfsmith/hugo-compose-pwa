@@ -1,0 +1,49 @@
+name: Sync to website
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - '.github/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PWA repo
+        uses: actions/checkout@v4
+        with:
+          path: pwa
+
+      - name: Checkout website repo
+        uses: actions/checkout@v4
+        with:
+          repository: davidfsmith/daves-adventures
+          token: ${{ secrets.WEBSITE_REPO_TOKEN }}
+          path: website
+
+      - name: Copy PWA files
+        run: |
+          cp pwa/index.html   website/site/static/compose/
+          cp pwa/sw.js         website/site/static/compose/
+          cp pwa/manifest.json website/site/static/compose/
+          cp pwa/icon.svg      website/site/static/compose/
+          cp pwa/icon-180.png  website/site/static/compose/
+          cp pwa/icon-192.png  website/site/static/compose/
+          cp pwa/icon-512.png  website/site/static/compose/
+          cp pwa/make-icons.html website/site/static/compose/
+
+      - name: Commit and push if changed
+        working-directory: website
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/static/compose/
+          if git diff --cached --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "compose: sync from hugo-compose-pwa"
+            git push
+          fi
